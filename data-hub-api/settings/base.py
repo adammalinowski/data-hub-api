@@ -141,6 +141,9 @@ CDMS_USERNAME = ''
 CDMS_PASSWORD = ''
 CDMS_COOKIE_KEY = b''
 
+# SOURCES
+COMPANIES_HOUSE_TOKEN = ''
+
 
 # .local.py overrides all the common settings.
 try:
