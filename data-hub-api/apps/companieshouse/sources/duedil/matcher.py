@@ -1,47 +1,51 @@
+from slumber.exceptions import HttpNotFoundError
+
+from ..api import api as companieshouse_api
+
 from ..matcher import BaseMatcher, FindingResult
+from . import api
 
 
 class DueDilSource(BaseMatcher):
-    NAME = constants.CH_SOURCES.DUEDIL.display
-    DUEL_SEARCH_URL = 'http://api.duedil.com/open/search?q={}&api_key={}'
-    CH_COMPANY_URL = 'https://api.companieshouse.gov.uk/company/{}'
+    """
+    DueDil API Matcher which uses the DueDil Api to find the best match.
 
-    def get_ch_postcode(self, company_number):
-        url = self.CH_COMPANY_URL.format(company_number)
-        response = requests.get(url, auth=(settings.CH_KEY, ''))
-        time.sleep(0.5)
-        if not response.ok:
+    e.g.
+        matcher = CHMatcher(name, postcode)
+        best_match = matcher.find()  # returns the best match, an instance of FindingResult
+        matcher.findings  # if you want the full list considered internally for debug purposes
+    """
+
+    def _get_ch_postcode(self, company_number):
+        try:
+            result = companieshouse_api.company.get(company_number)
+        except HttpNotFoundError:
             return (None, None)
-        result = response.json()
         return (result, self._get_ch_address(result))
 
     def _build_findings(self):
         self.findings = []
 
-        url = self.DUEL_SEARCH_URL.format(self.name, settings.DUEDIL_KEY)
-        response = requests.get(url)
-        if not response.ok:
+        try:
+            results = api.search(q=self.name)
+        except HttpNotFoundError:
             return
-
-        results = response.json()['response']['data']
 
         for result in results:
             dd_name = result['name']
             company_number = result['company_number']
-            ch_result, ch_postcode = self.get_ch_postcode(company_number)
-            accuracy = self.get_accuracy(dd_name, ch_postcode)
+            ch_result, ch_postcode = self._get_ch_postcode(company_number)
+            proximity = self.get_similarity_proximity(dd_name, ch_postcode)
 
             if ch_result:
                 raw = ch_result
-                source = constants.CH_SOURCES.CH
             else:
                 raw = result
-                source = constants.CH_SOURCES.DUEDIL
 
             self.findings.append(
                 FindingResult(
                     name=dd_name, postcode=ch_postcode,
-                    accuracy=accuracy, company_number=company_number,
-                    raw=raw, source=source
+                    proximity=proximity, company_number=company_number,
+                    raw=raw
                 )
             )
