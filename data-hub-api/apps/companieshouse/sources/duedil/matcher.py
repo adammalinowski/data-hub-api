@@ -6,41 +6,57 @@ from ..matcher import BaseMatcher, FindingResult
 from . import api
 
 
-class DueDilSource(BaseMatcher):
+class DueDilMatcher(BaseMatcher):
     """
-    DueDil API Matcher which uses the DueDil Api to find the best match.
+    DueDil API Matcher which uses the DueDil API to find the best match.
+
+    As the free Duedil account only returns company name and number, the algorithm
+    uses the Companies House dataset to get the full record.
 
     e.g.
-        matcher = CHMatcher(name, postcode)
+        matcher = DueDilMatcher(name, postcode)
         best_match = matcher.find()  # returns the best match, an instance of FindingResult
         matcher.findings  # if you want the full list considered internally for debug purposes
     """
 
-    def _get_ch_postcode(self, company_number):
+    def _get_ch_record(self, company_number):
+        """
+        Returns the CH record of company with number == `company_number` if it exists, None otherwise.
+        """
         try:
-            result = companieshouse_api.company.get(company_number)
+            return companieshouse_api.company(company_number).get()
         except HttpNotFoundError:
-            return (None, None)
-        return (result, self._get_ch_address(result))
+            pass
+        return None
+
+    def _to_ch_raw(self, dd_record):
+        """
+        Translate DueDil json record into a CompaniesHouse-like json record so that we have a unified format.
+        """
+        return {
+            'company_name': dd_record['name'],
+            'company_number': dd_record['company_number']
+        }
 
     def _build_findings(self):
         self.findings = []
 
         try:
-            results = api.search(q=self.name)
-        except HttpNotFoundError:
-            return
+            dd_results = api.search.get(q=self.name)['response']['data']
+        except HttpNotFoundError as e:
+            if e.response.status_code == 404:  # if not found => return empty
+                return
+            raise e  # otherwise it's a different problem...
 
-        for result in results:
-            dd_name = result['name']
-            company_number = result['company_number']
-            ch_result, ch_postcode = self._get_ch_postcode(company_number)
-            proximity = self.get_similarity_proximity(dd_name, ch_postcode)
+        for dd_result in dd_results:
+            dd_name = dd_result['name']
+            company_number = dd_result['company_number']
 
-            if ch_result:
-                raw = ch_result
-            else:
-                raw = result
+            ch_result = self._get_ch_record(company_number)
+            ch_postcode = self._get_ch_postcode(ch_result or {})
+
+            proximity = self._get_similarity_proximity(dd_name, ch_postcode)
+            raw = ch_result or self._to_ch_raw(dd_result)
 
             self.findings.append(
                 FindingResult(

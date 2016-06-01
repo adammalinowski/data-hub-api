@@ -128,8 +128,8 @@ class BaseMatcher(object):
 
         return max(self.findings, key=lambda x: x.proximity)
 
-    def _get_ch_address(self, ch_data):
-        for prop in ['address', 'registered_office_address']:
+    def _get_ch_postcode(self, ch_data):
+        for prop in ['registered_office_address', 'address']:
             if prop in ch_data:
                 return ch_data.get(prop, {}).get('postal_code')
         return None

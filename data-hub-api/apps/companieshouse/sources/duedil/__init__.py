@@ -5,6 +5,9 @@ from django.conf import settings
 from requests.auth import AuthBase
 
 
+DUEDIL_BASE_URL = "http://api.duedil.com/open/"
+
+
 class DueDilApikeyAuth(AuthBase):
     """
     Auth object that appends a `api_key` to every request.
@@ -20,7 +23,7 @@ class DueDilApikeyAuth(AuthBase):
 
 
 api = slumber.API(
-    "http://api.duedil.com/open/",
+    DUEDIL_BASE_URL,
     auth=DueDilApikeyAuth(settings.DUEDIL_TOKEN),
     append_slash=False
 )

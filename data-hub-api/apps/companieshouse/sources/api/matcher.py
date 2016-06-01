@@ -18,7 +18,7 @@ class CHMatcher(BaseMatcher):
         self.findings = []
         for result in results:
             ch_name = result['title']
-            ch_postcode = self._get_ch_address(result)
+            ch_postcode = self._get_ch_postcode(result)
             company_number = result['company_number']
             proximity = self._get_similarity_proximity(ch_name, ch_postcode)
 

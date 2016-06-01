@@ -2,9 +2,12 @@ import slumber
 
 from django.conf import settings
 
+COMPANIES_HOUSE_BASE_URL = "https://api.companieshouse.gov.uk/"
+
 api = slumber.API(
-    "https://api.companieshouse.gov.uk/",
+    COMPANIES_HOUSE_BASE_URL,
     auth=(
         settings.COMPANIES_HOUSE_TOKEN, ""
-    )
+    ),
+    append_slash=False
 )
